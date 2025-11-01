@@ -4,131 +4,21 @@ phases:
   install:
     runtime-versions:
       java: corretto8
-    commands:
-      - echo "=== INSTALL PHASE ==="
-      - echo "Checking Java installation..."
-      - java -version 2>&1 || echo "Java installation failed!"
-      - echo "Checking Maven installation..."
-      - mvn -version 2>&1 || echo "Maven not available!"
-      - echo "Current directory:"
-      - pwd
-      - echo "Repository contents:"
-      - ls -la
-      
   pre_build:
     commands:
-      - echo "=== PRE_BUILD PHASE ==="
-      - echo "Logging in to AWS CodeArtifact..."
-      - echo "AWS CLI version:"
-      - aws --version
-      - echo "Verifying AWS credentials:"
-      - aws sts get-caller-identity
-      - echo "Attempting to get CodeArtifact authorization token..."
+      - echo Logging in to AWS CodeArtifact...
       - CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain nextwork --domain-owner 027483752505 --region ap-south-1 --query authorizationToken --output text`
-      - echo "Token retrieval exit code: $?"
       - export CODEARTIFACT_AUTH_TOKEN
-      - |
-        if [ -z "$CODEARTIFACT_AUTH_TOKEN" ]; then
-          echo "ERROR: CodeArtifact token is empty or not retrieved!"
-          exit 1
-        else
-          echo "SUCCESS: CodeArtifact token retrieved (length: ${#CODEARTIFACT_AUTH_TOKEN} characters)"
-        fi
-      - echo "Verifying settings.xml exists:"
-      - test -f settings.xml && echo "settings.xml found" || echo "ERROR: settings.xml NOT FOUND!"
-      - echo "Contents of settings.xml:"
-      - cat settings.xml
-      - echo "Verifying pom.xml exists:"
-      - test -f pom.xml && echo "pom.xml found" || echo "ERROR: pom.xml NOT FOUND!"
-      
   build:
     commands:
-      - echo "=== BUILD PHASE ==="
-      - echo "Build started on `date`"
-      - echo "Java version being used:"
-      - java -version
-      - echo "Maven version being used:"
-      - mvn -version
-      - echo "Running mvn clean install..."
-      - mvn clean install -s settings.xml -e -X
-      - echo "Maven clean install exit code: $?"
-      - echo "Checking target directory:"
-      - ls -la target/ || echo "Target directory not created!"
-      - echo "Checking for compiled artifacts:"
-      - find target -type f -name "*.war" -o -name "*.jar" || echo "No WAR/JAR files found!"
-      
+      - echo Build started on `date`
+      - mvn clean install -s settings.xml
   post_build:
     commands:
-      - echo "=== POST_BUILD PHASE ==="
-      - echo "Build completed on `date`"
-      - echo "Packaging artifacts..."
-      - mvn package -s settings.xml -e
-      - echo "Maven package exit code: $?"
-      - echo "Final artifact check:"
-      - ls -lh target/*.war || echo "ERROR: No WAR files found in target directory!"
-      - echo "All files in target directory:"
-      - ls -la target/
-      - echo "Build success status: $CODEBUILD_BUILD_SUCCEEDING"
-      - |
-        if [ "$CODEBUILD_BUILD_SUCCEEDING" -eq 0 ]; then
-          echo "⚠️  BUILD FAILED - Review logs above"
-        else
-          echo "✅ BUILD SUCCEEDED"
-        fi
-
+      - echo Build completed on `date`
+      - echo Packaging artifacts...
+      - mvn package -s settings.xml
 artifacts:
   files:
     - target/*.war
   discard-paths: no
-```
-
-## Key Logging Features Added:
-
-### 📋 **Install Phase:**
-- Java version check (will show if corretto8 fails to install)
-- Maven version check
-- Directory contents
-
-### 🔐 **Pre_build Phase:**
-- AWS credentials verification
-- CodeArtifact token retrieval with validation
-- Token length check (confirms it's not empty)
-- `settings.xml` and `pom.xml` existence checks
-- Display `settings.xml` contents
-
-### 🔨 **Build Phase:**
-- Java/Maven versions confirmation
-- Maven with debug flags (`-e -X` for errors and debug output)
-- Exit code tracking
-- Target directory verification
-- Search for compiled artifacts
-
-### 📦 **Post_build Phase:**
-- Maven package exit code
-- Detailed artifact listing
-- Build success/failure indicator
-
-## What the Logs Will Reveal:
-
-**If corretto8 fails (most likely):**
-```
-=== INSTALL PHASE ===
-Checking Java installation...
-Java installation failed!
-```
-
-**If CodeArtifact auth fails:**
-```
-ERROR: CodeArtifact token is empty or not retrieved!
-Token retrieval exit code: 254
-```
-
-**If settings.xml is missing:**
-```
-ERROR: settings.xml NOT FOUND!
-```
-
-**If Maven build fails:**
-```
-[ERROR] Failed to execute goal...
-Maven clean install exit code: 1
